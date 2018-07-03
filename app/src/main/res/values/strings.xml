@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">MockLocationApplication</string>
+    <string name="google_maps_key">AIzaSyB6mlX-1Zk1PXKVDF9uW1fuLxJsDST4t1I</string>
+</resources>
