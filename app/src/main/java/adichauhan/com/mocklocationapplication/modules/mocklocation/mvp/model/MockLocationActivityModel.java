@@ -110,7 +110,18 @@ public class MockLocationActivityModel  {
                     continue;
                 }
                 Double distanceBetween = SphericalUtil.computeDistanceBetween(previousLatLng,latLng);
-                if(distanceBetween>=distanceStep) {
+                if(distanceBetween > (distanceStep + 100 /*buffer*/)) {
+                    double repeatition = (distanceBetween/distanceStep)%distanceStep;
+                    for(int i = 0; i <= repeatition ; i++) {
+                        double newLat = previousLatLng.latitude +
+                                (latLng.latitude - previousLatLng.latitude) * (distanceStep / distanceBetween);
+                        double newLng = previousLatLng.longitude +
+                                (latLng.longitude - previousLatLng.longitude)* (distanceStep / distanceBetween);
+                        LatLng newLatLng = new LatLng(newLat, newLng);
+                        latLngs.add(newLatLng);
+                        previousLatLng = newLatLng;
+                    }
+                } else if(distanceBetween>=distanceStep) {
                     latLngs.add(latLng);
                     previousLatLng = latLng;
                 }

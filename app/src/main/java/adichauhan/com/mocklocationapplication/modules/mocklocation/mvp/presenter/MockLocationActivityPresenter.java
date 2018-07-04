@@ -7,7 +7,6 @@ import android.net.Uri;
 import android.provider.Settings;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 
 import com.google.android.gms.location.places.Place;
@@ -279,9 +278,7 @@ public class MockLocationActivityPresenter {
             }
 
             @Override
-            public void onError(Throwable e) {
-                Log.d("google API failed",e.toString());
-            }
+            public void onError(Throwable ignore) {}
 
             @Override
             public void onComplete() {
