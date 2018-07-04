@@ -10,10 +10,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.ui.PlaceAutocomplete;
 import com.google.android.gms.maps.GoogleMap;
-import com.jakewharton.rxbinding2.widget.TextViewAfterTextChangeEvent;
-
-import java.util.Objects;
+import com.google.android.gms.maps.model.LatLng;
 
 import javax.inject.Inject;
 
@@ -25,7 +25,6 @@ import adichauhan.com.mocklocationapplication.modules.mocklocation.mvp.view.Mock
 import adichauhan.com.mocklocationapplication.modules.mocklocation.mvp.view.MockLocationActivityViewState;
 import adichauhan.com.mocklocationapplication.modules.mocklocation.mvp.view.enums.ApiState;
 import adichauhan.com.mocklocationapplication.modules.mocklocation.mvp.view.enums.UserLocationState;
-import io.reactivex.Scheduler;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
@@ -47,9 +46,12 @@ public class MockLocationActivityPresenter {
     private final CompositeDisposable nearbyCompositeDisposables = new CompositeDisposable();
     private Optional<Disposable> previousNearbyApiCallDisposable = Optional.empty();
     private Optional<Disposable> userLocationUpdatesDisposable = Optional.empty();
-    private Disposable mockLocationDisposable;
+
+    private Optional<Disposable> mockLocationDisposable = Optional.empty();
 
     public static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
+    public static final int SOURCE_PLACE_AUTOCOMPLETE_REQUEST_CODE = 2;
+    public static final int DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE = 3;
 
     @Inject
     public MockLocationActivityPresenter(AppCompatActivity activity,
@@ -65,6 +67,8 @@ public class MockLocationActivityPresenter {
         compositeDisposable.add(observeMockButtonClick());
         compositeDisposable.add(observeEdtDistanceChanges());
         compositeDisposable.add(observeEdtSpeedChanges());
+        compositeDisposable.add(observeSourceClick());
+        compositeDisposable.add(observeDestinationClick());
     }
 
     private Disposable observeMapReadyState() {
@@ -83,7 +87,6 @@ public class MockLocationActivityPresenter {
                     PermissionUtils.getPermissions(activity,LOCATION_PERMISSION_REQUEST_CODE
                             , new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION});
                 }
-                observeDirectionCall();
             }
         });
     }
@@ -116,6 +119,11 @@ public class MockLocationActivityPresenter {
         if (previousNearbyApiCallDisposable.isPresent()
                 && !previousNearbyApiCallDisposable.get().isDisposed())
             previousNearbyApiCallDisposable.get().dispose();
+        if(mockLocationDisposable.isPresent()
+                && mockLocationDisposable.get().isDisposed()) {
+            mockLocationDisposable.get().dispose();
+            mockLocationDisposable = Optional.empty();
+        }
     }
 
     private Disposable observeUserLocation() {
@@ -126,11 +134,10 @@ public class MockLocationActivityPresenter {
             @Override
             public void accept(Optional<Location> location) {
                 if(location.isPresent()) {
-                    Log.d("adsasdasd",""+location.get().getLatitude()+" "+location.get().getLongitude());
-                        MockLocationActivityViewState state = view.getCurrentState();
-                        state.setUserLocation(location);
-                        state.setUserLocationState(UserLocationState.UPDATE_REQUESTED);
-                        view.renderView();
+                    MockLocationActivityViewState state = view.getCurrentState();
+                    state.setUserLocation(location);
+                    state.setUserLocationState(UserLocationState.UPDATE_REQUESTED);
+                    view.renderView();
                 }
             }
         });
@@ -140,14 +147,19 @@ public class MockLocationActivityPresenter {
         return view.observeEdtDistanceChanges()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<TextViewAfterTextChangeEvent>() {
+                .subscribe(new Consumer<String>() {
                     @Override
-                    public void accept(TextViewAfterTextChangeEvent textViewAfterTextChangeEvent) {
-                        if(textViewAfterTextChangeEvent.editable() != null
-                                && !textViewAfterTextChangeEvent.editable().toString().isEmpty()) {
+                    public void accept(String changedText) {
+                        if(changedText != null
+                                && !changedText.isEmpty()) {
                             view.getCurrentState()
                                     .setDistanceMockInMeters(Integer
-                                            .parseInt(textViewAfterTextChangeEvent.editable().toString()));
+                                            .parseInt(changedText));
+                            if(mockLocationDisposable.isPresent()
+                                    && mockLocationDisposable.get().isDisposed()) {
+                                mockLocationDisposable.get().dispose();
+                                mockLocationDisposable = Optional.empty();
+                            }
                         }
                     }
                 });
@@ -157,14 +169,22 @@ public class MockLocationActivityPresenter {
         return view.observeEdtSpeedChanges()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<TextViewAfterTextChangeEvent>() {
+                .subscribe(new Consumer<String>() {
                     @Override
-                    public void accept(TextViewAfterTextChangeEvent textViewAfterTextChangeEvent) {
-                        if(textViewAfterTextChangeEvent.editable() != null
-                                && !textViewAfterTextChangeEvent.editable().toString().isEmpty()) {
+                    public void accept(String changedText) {
+                        if(changedText != null
+                                && !changedText.isEmpty()) {
+                            Double speed = Double
+                                    .parseDouble(changedText);
+                            if(speed == 0)
+                                speed = 1.0d;
                             view.getCurrentState()
-                                    .setSpeedInXTimes(Double
-                                            .parseDouble(textViewAfterTextChangeEvent.editable().toString()));
+                                    .setSpeedInXTimes(speed);
+                            if(mockLocationDisposable.isPresent()
+                                    && mockLocationDisposable.get().isDisposed()) {
+                                mockLocationDisposable.get().dispose();
+                                mockLocationDisposable = Optional.empty();
+                            }
                         }
                     }
                 });
@@ -188,20 +208,63 @@ public class MockLocationActivityPresenter {
         return view.observeMockBtnClick().subscribe(new Consumer<Object>() {
             @Override
             public void accept(Object o) {
-                if(!view.getCurrentState().getDirectionsResponse().isPresent())
-                    return;
-                mockLocationDisposable = model.observeMockLocation(view.getCurrentState()).subscribe(new Consumer<Location>() {
-                    @Override
-                    public void accept(Location location) {
-                        model.mockLocation(location);
-                    }
-                });
+                MockLocationActivityViewState state = view.getCurrentState();
+                if(mockLocationDisposable.isPresent()
+                        && mockLocationDisposable.get().isDisposed()) {
+                    mockLocationDisposable.get().dispose();
+                    mockLocationDisposable = Optional.empty();
+                }
+                if(!state.getDirectionsResponse().isPresent()) {
+                    observeDirectionCall();
+                } else {
+                    mockLocationDisposable = Optional.of(model.observeMockLocation(view.getCurrentState())
+                            .subscribe(new Consumer<LatLng>() {
+                        @Override
+                        public void accept(LatLng latLng) throws Exception {
+                            MockLocationActivityViewState state = view.getCurrentState();
+                            state.getRouteData().add(latLng);
+                            view.renderView();
+                        }
+                    }));
+                }
+            }
+        });
+    }
+
+    private Disposable observeSourceClick() {
+        return view.observeSourceClick().subscribe(new Consumer<Object>() {
+            @Override
+            public void accept(Object o) {
+                try {
+                    Intent intent =
+                            new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_FULLSCREEN)
+                                    .build(activity);
+                    activity.startActivityForResult(intent, SOURCE_PLACE_AUTOCOMPLETE_REQUEST_CODE);
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private Disposable observeDestinationClick() {
+        return view.observeDestinationClick().subscribe(new Consumer<Object>() {
+            @Override
+            public void accept(Object o) {
+                try {
+                    Intent intent =
+                            new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_FULLSCREEN)
+                                    .build(activity);
+                    activity.startActivityForResult(intent, DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE);
+                } catch (Exception ignored) {}
             }
         });
     }
 
     private void observeDirectionCall() {
-        model.observeDistanceCall().subscribe(new DisposableObserver<Response<DirectionsResponse>>() {
+        MockLocationActivityViewState state = view.getCurrentState();
+        if(!state.getOrigin().isPresent() || !state.getDestination().isPresent())
+            return;
+        model.observeDistanceCall(state.getOrigin().get(),state.getDestination().get())
+                .subscribe(new DisposableObserver<Response<DirectionsResponse>>() {
             @Override
             public void onNext(Response<DirectionsResponse> responseResponse) {
                 if(responseResponse.isSuccessful()
@@ -225,5 +288,19 @@ public class MockLocationActivityPresenter {
                dispose();
             }
         });
+    }
+
+    public void onSourceSelected(Place place) {
+        MockLocationActivityViewState state = view.getCurrentState();
+        state.setOrigin(Optional.of(place));
+        state.setOriginState(ApiState.UPDATE_REQUESTED);
+        view.renderView();
+    }
+
+    public void onDestinationSelected(Place place) {
+        MockLocationActivityViewState state = view.getCurrentState();
+        state.setDestination(Optional.of(place));
+        state.setDestinationState(ApiState.UPDATE_REQUESTED);
+        view.renderView();
     }
 }

@@ -30,8 +30,9 @@ public class FusedLocationObservableProvider {
             @Override
             public void subscribe(@NonNull final ObservableEmitter<Optional<Location>> e) throws Exception {
                 final LocationRequest locationRequest = new LocationRequest();
-                locationRequest.setInterval(2000);
+                locationRequest.setInterval(120000);
                 locationRequest.setFastestInterval(0);
+                locationRequest.setSmallestDisplacement(100);
                 locationRequest.setPriority(PRIORITY_HIGH_ACCURACY);
                 fusedLocationProviderClient.requestLocationUpdates(locationRequest, new LocationCallback() {
                     @Override

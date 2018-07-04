@@ -21,6 +21,22 @@
         android:background="#ffffff"
         android:id="@+id/ll_action"
         android:orientation="vertical">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Set Source"
+            android:padding="10dp"
+            android:gravity="center"
+            android:layout_gravity="center"
+            android:id="@+id/tv_source"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Set Destination"
+            android:gravity="center"
+            android:id="@+id/tv_destination"
+            android:layout_gravity="center"
+            android:padding="10dp"/>
         <EditText
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

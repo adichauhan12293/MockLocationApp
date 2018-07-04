@@ -3,7 +3,6 @@ package adichauhan.com.mocklocationapplication.modules.mocklocation.di.module;
 import android.support.v7.app.AppCompatActivity;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.places.GeoDataClient;
 
 import adichauhan.com.mocklocationapplication.app.service.GoogleService;
 import adichauhan.com.mocklocationapplication.modules.mocklocation.di.annotations.scope.MockLocationActivityScope;
@@ -44,8 +43,7 @@ public class MockLocationActivityModule {
     @Provides
     @MockLocationActivityScope
     MockLocationActivityModel mockLocationActivityModel(GoogleService googleService,
-                                          FusedLocationProviderClient fusedLocationProviderClient,
-                                          GeoDataClient geoDataClient) {
-        return new MockLocationActivityModel(activity,googleService, fusedLocationProviderClient,geoDataClient);
+                                          FusedLocationProviderClient fusedLocationProviderClient) {
+        return new MockLocationActivityModel(activity,googleService, fusedLocationProviderClient);
     }
 }
